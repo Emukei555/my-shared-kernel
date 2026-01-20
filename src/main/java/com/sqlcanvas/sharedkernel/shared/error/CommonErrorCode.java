@@ -25,7 +25,6 @@ public enum CommonErrorCode implements ErrorCode {
 
     private final String code;
 
-    // ★ここを 'message' から 'defaultMessage' に変更！
     // こうすることで Lombok が public String getDefaultMessage() を生成します
     private final String defaultMessage;
 
