@@ -185,7 +185,7 @@ public enum CommonErrorCode implements ErrorCode {
 
 使用例
 Result.failureでエラーコードを指定します。java
-```
+```java
 return Result.failure(CommonErrorCode.INVALID_ARGUMENT, "Email is invalid");
 ```
 
