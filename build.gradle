@@ -5,7 +5,7 @@ plugins {
 
 group = 'com.yourcompany'
 // 新機能(Value Objects)を追加したので、マイナーバージョンを上げる
-version = '0.1.0'
+version = '0.1.2'
 
 java {
     toolchain { languageVersion = JavaLanguageVersion.of(21) }
@@ -53,6 +53,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
     testImplementation 'org.assertj:assertj-core:3.24.2'
     testImplementation 'org.slf4j:slf4j-simple:2.0.9' // テスト実行時のログ出力用
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 // ローカルMavenリポジトリ(~/.m2/repository)にインストールする設定
@@ -74,4 +75,7 @@ publishing {
             }
         }
     }
+}
+tasks.named('test') {
+    useJUnitPlatform()
 }
