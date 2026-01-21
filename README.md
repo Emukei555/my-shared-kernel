@@ -33,8 +33,7 @@
 - **再利用性の向上**: 各プロジェクトで繰り返し実装される不変条件やID生成をライブラリ化し、生産性を高める。
 - **モダンJavaの活用**: record, sealed interface, pattern matching などの機能を基盤に組み込み、堅牢で可読性の高いコードを実現。
 
-このライブラリは、個人プロジェクトや小規模チームでのDDD実践に最適です。  
-将来的には、Money, PositiveInt, Identifier などの値オブジェクトを追加予定です。
+このライブラリは、個人プロジェクトや小規模チームでのDDD実践に最適です。
 
 ## 要件
 - **Java**: 21+ (record, sealed interface, pattern matching を活用するため)
@@ -60,47 +59,45 @@ Java 21の switch 式やパターンマッチングと組み合わせること�
 - **CommonErrorCode**: 汎用的なエラー（バリデーションエラー、システムエラーなど）の定義。
 
 ### 3. Domain Value Objects
-ドメイン特有の値を型安全に扱います（現在は最小限、拡張予定）。
+ドメイン特有の値を型安全に扱います。
 
-- **RequestId**: UUID v7 ベースの識別子生成（時系列順にソート可能なUUID）。
+- **Numeric VOs**:
+    - `Money`: 金額計算ロジック（加算・減算・負数チェック）を内包。
+    - `PositiveInt`: 正の整数 (1以上) を保証。
+    - `NonNegativeLong`: 非負の整数 (0以上) を保証。
+    - `PositiveBigDecimal`: 正の小数を保証。
+- **String VOs**:
+    - `Email`: メールアドレス形式のチェック。
+    - `PhoneNumber`: 電話番号形式のチェック。
+    - `PostalCode`: 郵便番号形式のチェック。
+- **Identifier**:
+    - `RequestId`: UUID v7 ベースの識別子生成（時系列順にソート可能なUUID）。
 
 ## インストール
 
 ### JitPack経由
-このリポジトリをライブラリとして利用するには、build.gradle.kts に以下を追加してください。
+このリポジトリをライブラリとして利用するには、build.gradle に以下を追加してください。
 
-```kotlin
+```groovy
 repositories {
     mavenCentral()
     maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
-    implementation("com.github.Emukei555:my-shared-kernel:0.1.0-SNAPSHOT") // 最新リリースタグやコミットハッシュを指定
+    implementation 'com.github.Emukei555:my-shared-kernel:v0.1.3'
 }
 ```
 
-Mavenの場合:xml
-```xml
+注意: GitHub Packagesを利用する場合は、別途認証設定が必要です。
 
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
+## 使用方法
 
-<dependencies>
-    <dependency>
-        <groupId>com.github.Emukei555</groupId>
-        <artifactId>my-shared-kernel</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-    </dependency>
-</dependencies>
-```
+### Resultパターン
 
-注意: ローカル開発時は、gradle publishToMavenLocal でインストールして使用してください。使用方法Resultパターン基本的な使用例（成功/失敗のハンドリング）
-メソッドからResultを返すことで、エラーを型として明示的に扱います。java
+**基本的な使用例（成功/失敗のハンドリング）**
+メソッドからResultを返すことで、エラーを型として明示的に扱います。
+
 ```java
 // ユーザー登録の例
 public Result<User> registerUser(String name, String email) {
@@ -117,8 +114,8 @@ public Result<User> registerUser(String name, String email) {
 }
 ```
 
-パターンマッチングによる結果処理（Java 21+）
-switch式を使って、コンパイラの支援を受けながら結果を処理します。java
+**パターンマッチングによる結果処理（Java 21+）**
+
 ```java
 Result<User> result = userService.registerUser("Alice", "alice@example.com");
 
@@ -137,79 +134,37 @@ return switch (result) {
 };
 ```
 
-関数型スタイル（チェーン処理）
-flatMap/mapを使って、Railway Oriented Programmingを実現します。java
+### ドメイン値オブジェクト
+
+**Moneyの使用例**
+
 ```java
-userService.registerUser("Alice", "alice@example.com")
-    .flatMap(user -> walletService.createWallet(user.getId())) // 成功時のみ実行（Wallet作成）
-    .tap(wallet -> log.info("Wallet created: {}", wallet.getId())) // 成功時のログ
-    .tapFailure(failure -> log.error("Error: {}", failure.message())) // 失敗時のログ
-    .map(wallet -> new AccountResponse(user, wallet)); // 最終変換
-```
-例外との連携（unwrap）
-トランザクション境界などで例外が必要な場合に使用します。java
-```java
-@Transactional
-public User registerWithWallet(String name, String email) {
-    return userService.registerUser(name, email)
-            .flatMap(user -> walletService.createWallet(user.getId()))
-            .unwrap(); // 失敗時はGachaExceptionをスロー（ロールバック誘発）
-}
+Money price = new Money(1000);
+Money tax = new Money(100);
+
+// 計算結果もMoney型で返る (Resultでラップされる場合あり)
+Result<Money> total = price.add(tax); 
 ```
 
-エラーコードの標準化アプリケーション固有のエラーコードを定義します。エラーコードの定義例
-ErrorCodeインターフェースを実装してEnumを作成します。java
+**RequestIdの使用例**
+
 ```java
-import org.springframework.http.HttpStatus;
-
-public enum CommonErrorCode implements ErrorCode {
-    CONFLICT("COMMON-001", "リソースが既に存在します", HttpStatus.CONFLICT),
-    INVALID_ARGUMENT("COMMON-002", "無効な引数です", HttpStatus.BAD_REQUEST);
-
-    private final String code;
-    private final String defaultMessage;
-    private final HttpStatus status;
-
-    CommonErrorCode(String code, String defaultMessage, HttpStatus status) {
-        this.code = code;
-        this.defaultMessage = defaultMessage;
-        this.status = status;
-    }
-
-    @Override
-    public String getCode() { return code; }
-    @Override
-    public String getDefaultMessage() { return defaultMessage; }
-    @Override
-    public HttpStatus getStatus() { return status; }
-}
-```
-
-使用例
-Result.failureでエラーコードを指定します。java
-```java
-return Result.failure(CommonErrorCode.INVALID_ARGUMENT, "Email is invalid");
-```
-
-ドメイン値オブジェクトドメイン特有の値を型安全に扱います。RequestIdの使用例
-時系列ソート可能なUUID v7を生成します。java
-
 RequestId requestId = RequestId.generate(); // UUID v7生成
-log.info("Request ID: {}", requestId.value()); // UUID文字列取得
+log.info("Request ID: {}", requestId.value()); 
+```
 
-内部実装: UUID v7（時系列順にソート可能、衝突耐性高）
+## プロジェクト構造
 
-プロジェクト構造
-
+```text
 com.yourcompany.domain.shared
 ├── result/           # Result<T>, Success, Failure
 ├── error/            # ErrorCode, CommonErrorCode
-├── value/            # ValueObject基底 (将来拡張)
-├── id/               # Identifier基底, UUIDv7Id, RequestId
-└── logging/          # MDC Utility (将来追加予定)
+├── vo/               # ValueObject (Money, PositiveInt, Email, etc.)
+├── util/             # RequestId (UUIDv7)
+└── docs/             # ADR (Architectural Decision Records)
+```
 
-今後の予定:Money / PositiveInt などの値オブジェクト追加  
-Logging Utility (MDC自動設定)  
-Validation Helper (共通ガード節)
-
+## 今後の予定
+- Logging Utility (MDC自動設定)
+- Validation Helper (共通ガード節)
 
