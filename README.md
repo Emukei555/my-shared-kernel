@@ -1,5 +1,7 @@
 # Shared Kernel (Domain Primitives & Utilities)
 
+![Java CI](https://github.com/Emukei555/my-shared-kernel/actions/workflows/ci.yml/badge.svg)
+
 ドメイン駆動設計 (DDD) を実践するための共通ライブラリです。  
 例外駆動の制御フローを廃し、Railway Oriented Programming (Result型) を用いた堅牢なエラーハンドリングと、モダンなJava (Java 21+) の機能を活用するための基盤を提供します。  
 このライブラリは、ドメインの不変条件を型安全に守り、再利用性を高めることを目的としています。
