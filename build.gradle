@@ -62,4 +62,16 @@ publishing {
             from components.java
         }
     }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            // ★重要: 所有者名(Emukei555)とリポジトリ名(my-shared-kernel)を小文字で記述
+            url = uri("https://maven.pkg.github.com/Emukei555/my-shared-kernel")
+            credentials {
+                // 環境変数 または gradle.properties から読み込む
+                username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("gpr.user")
+                password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("gpr.key")
+            }
+        }
+    }
 }
