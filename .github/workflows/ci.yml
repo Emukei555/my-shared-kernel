@@ -1,0 +1,55 @@
+name: Java CI/CD with Gradle
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ] # v0.1.0 などのタグがプッシュされたら発火
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  packages: write # GitHub Packagesへの書き込み権限 (必須)
+
+jobs:
+  # 1. テストジョブ (全てのPush/PRで実行)
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # Gradleのキャッシュ設定などを自動でやってくれる公式Action
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Run Tests
+        run: ./gradlew test
+
+  # 2. 公開ジョブ (タグが打たれたときだけ実行)
+  publish:
+    needs: test # テストが成功していないと実行されない
+    if: startsWith(github.ref, 'refs/tags/v') # "v" で始まるタグのときのみ
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Publish to GitHub Packages
+        run: ./gradlew publish
+        env:
+          # build.gradle の credentials ブロックで参照している環境変数をセット
+          # GITHUB_TOKEN はGitHub Actionsが自動生成する秘密鍵
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
