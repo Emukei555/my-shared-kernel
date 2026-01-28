@@ -1,11 +1,13 @@
 plugins {
     id 'java-library' // 'java' ではなく 'java-library' を使う
     id 'maven-publish' // ローカルにライブラリを発行するために必要
+    id 'java-test-fixtures' //テストコードやアサーションをライブラリとして公開する機能
+    id 'jacoco' // カバレッジ計測ツール
 }
 
 group = 'com.yourcompany'
 // 新機能(Value Objects)を追加したので、マイナーバージョンを上げる
-version = '0.1.2'
+version = '0.2.0'
 
 java {
     toolchain { languageVersion = JavaLanguageVersion.of(21) }
@@ -20,40 +22,44 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
-    // Spring関連: アプリ側ですでに持っているはずなので 'compileOnly' か 'implementation' で調整
-    // TransactionTemplateなどのため
-    implementation 'org.springframework:spring-tx:6.1.2'
-    implementation 'org.springframework:spring-context:6.1.2'
+    // --- 削除 (下で 6.2.1 を定義しているため) ---
+    // implementation 'org.springframework:spring-tx:6.1.2'
+    // implementation 'org.springframework:spring-context:6.1.2'
 
     // Logging (MDC)
     implementation 'org.slf4j:slf4j-api:2.0.9'
 
-    // JSON (Resultの中身をシリアライズする場合など)
+    // JSON
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.3'
 
-    // 1. ErrorCode基盤用: HttpStatus を使うために必要
-    // バージョンはSpring Boot 3.4系に合わせて 6.2.x 系にするのが安全です
+    // 1. ErrorCode基盤用
     implementation 'org.springframework:spring-web:6.2.1'
 
-    // 2. VO/Entity基盤用: @Embeddable, @MappedSuperclass, @Id などを使うために必要
-    // ライブラリ利用側のJPA実装(Hibernate)と衝突しないよう compileOnly 推奨
+    // 2. VO/Entity基盤用
     compileOnly 'jakarta.persistence:jakarta.persistence-api:3.1.0'
 
-    // 3. バリデーション用: @NotNull, @Size などを共通クラスで使う場合
+    // 3. バリデーション用
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
 
-    // 4. Null安全用: @Nullable, @NotNull (JetBrains) - IDEの支援を受けるため（任意）
+    // 4. Null安全用
     compileOnly 'org.jetbrains:annotations:24.1.0'
 
-    // --- 既存のSpring関連（バージョンを 6.2.x に更新推奨） ---
+    // --- 既存のSpring関連（バージョンを 6.2.1 に統一） ---
+    // ここを生かす
     implementation 'org.springframework:spring-tx:6.2.1'
     implementation 'org.springframework:spring-context:6.2.1'
 
-    // --- テスト用（ライブラリ自体の品質保証に必須） ---
+    // --- テスト用 ---
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
     testImplementation 'org.assertj:assertj-core:3.24.2'
-    testImplementation 'org.slf4j:slf4j-simple:2.0.9' // テスト実行時のログ出力用
+    testImplementation 'org.slf4j:slf4j-simple:2.0.9'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // --- Test Fixtures用 ---
+    testFixturesImplementation 'org.assertj:assertj-core:3.24.2'
+    testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
+    testFixturesCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testFixturesAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 }
 
 // ローカルMavenリポジトリ(~/.m2/repository)にインストールする設定
@@ -76,6 +82,60 @@ publishing {
         }
     }
 }
+
+jacoco {
+    toolVersion = "0.8.12" // Java 21対応のため最新版推奨
+}
+
+// テスト実行時にレポートを生成するようにする
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport // testタスクの後に必ずレポート生成
+}
+
+// レポート生成設定
+jacocoTestReport {
+    dependsOn test // レポート生成の前にテストを実行
+    reports {
+        xml.required = true // CI連携用 (GitHub Actionsなどで使う)
+        html.required = true // 人間確認用
+    }
+}
+
+// カバレッジ率のルール設定 (80%未満ならビルド失敗にする)
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            element = 'CLASS' // クラス単位でチェック
+
+            // 80% (0.80) という目標値
+            limit {
+                counter = 'LINE' // 行カバレッジ (命令網羅に近い)
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+
+            // 分岐網羅 (C1) も大事ならこれも追加 (厳しければ一旦外してもOK)
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+
+            // 除外設定 (カバレッジ計測しなくていいファイル)
+            excludes = [
+                    'com.sqlcanvas.sharedkernel.shared.test.**', // Test Fixtures自体
+                    'com.sqlcanvas.sharedkernel.shared.error.**' // Enumなどは100%になりにくい場合がある
+            ]
+        }
+    }
+}
+
+// checkタスク (./gradlew check) でカバレッジ検証も走るようにする
+check.dependsOn jacocoTestCoverageVerification
+
+
 tasks.named('test') {
     useJUnitPlatform()
 }

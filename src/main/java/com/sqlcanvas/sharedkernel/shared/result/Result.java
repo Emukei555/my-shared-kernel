@@ -170,4 +170,19 @@ public sealed interface Result<T> permits Result.Success, Result.Failure {
                     throw new RuntimeException("Result failure: [" + code + "] " + msg);
         };
     }
+
+    /**
+     * 強制的に失敗情報（Failure）を取り出します。
+     * <p>
+     * 成功時は {@link IllegalStateException} がスローされます。
+     * 主にテストコードや、isFailure() 確定後の処理で使用します。
+     * </p>
+     */
+    default Failure<T> unwrapFailure() {
+        return switch (this) {
+            case Success<T> s ->
+                    throw new IllegalStateException("Called unwrapFailure() on a Success result: " + s.value());
+            case Failure<T> f -> f;
+        };
+    }
 }
