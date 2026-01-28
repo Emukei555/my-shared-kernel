@@ -24,6 +24,12 @@ dependencies {
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.9'
 
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+    compileOnly 'org.springframework.security:spring-security-core:6.4.2'
+
+    // OncePerRequestFilter のために必要
+    implementation 'org.springframework:spring-web:6.2.1'
+
     // JSON
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.3'
 
