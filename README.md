@@ -70,7 +70,36 @@ Java 21の switch 式やパターンマッチングと組み合わせること�
     - `PostalCode`: 郵便番号形式のチェック。
 - **Identifier**:
     - `RequestId`: UUID v7 ベースの識別子生成（時系列順にソート可能なUUID）。
+ 
+### 4. Test Fixtures (v0.2.0〜)
+ライブラリ利用者が、Result型を返すロジックのテストをより簡単に記述するための支援ツールを提供します。
+- **ResultAssert**: AssertJの流れるようなインターフェースでResultの状態を検証可能。
 
+Result型のテスト（Test Fixtures）
+アプリ側の build.gradle で testImplementation に testFixtures を指定することで利用可能です。
+```Java
+// AssertJを拡張した直感的な検証
+assertThat(result)
+    .isSuccess()
+    .hasValueSatisfying(user -> {
+        assertThat(user.getName()).isEqualTo("Alice");
+    });
+
+// 失敗系の検証もスムーズに記述可能
+assertThat(result)
+    .isFailure()
+    .hasErrorCode(CommonErrorCode.INVALID_PARAMETER);
+```
+複数バリデーションの集約
+Java
+```Java
+Result<User> user = Validation.combine(
+    Email.of(emailInput),
+    Password.of(passwordInput),
+    (email, password) -> new User(email, password)
+);
+// 失敗時は全てのエラーメッセージが収集されます
+```
 ## インストール
 
 ### JitPack経由
